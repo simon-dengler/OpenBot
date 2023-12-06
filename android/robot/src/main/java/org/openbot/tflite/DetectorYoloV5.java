@@ -2,7 +2,6 @@ package org.openbot.tflite;
 
 import android.app.Activity;
 import android.graphics.RectF;
-
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -103,12 +102,7 @@ public class DetectorYoloV5 extends Detector {
   @Override
   protected void runInference() {
     Object[] inputArray = {imgData};
-    try {
-      tflite.runForMultipleInputsOutputs(inputArray, outputMap);
-    }
-    catch(Exception e){
-      System.out.println("Error Occurred: " + e);
-    }
+    tflite.runForMultipleInputsOutputs(inputArray, outputMap);
   }
 
   @Override

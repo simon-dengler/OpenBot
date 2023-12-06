@@ -24,12 +24,16 @@ import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
 import java.io.BufferedWriter;
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileWriter;
+import java.io.FileReader;
 import java.io.IOException;
 import org.openbot.R;
+import org.openbot.env.BotToControllerEventBus;
 import org.openbot.env.Logger;
 import org.openbot.env.SharedPreferencesManager;
+import org.openbot.utils.ConnectionUtils;
 import org.openbot.utils.Enums;
 
 public class SensorService extends Service implements SensorEventListener {
@@ -80,6 +84,7 @@ public class SensorService extends Service implements SensorEventListener {
   public static final int MSG_WHEELS = 6;
   public static final int MSG_BUMPER = 7;
 
+  public static String logFolder;
   private static final Logger LOGGER = new Logger();
   Messenger messenger = new Messenger(new SensorMessageHandler());
 
@@ -108,7 +113,6 @@ public class SensorService extends Service implements SensorEventListener {
   @Override
   public int onStartCommand(Intent intent, int flags, int startId) {
     Bundle extras = intent.getExtras();
-    String logFolder;
     if (extras == null) {
       logFolder =
           Environment.getExternalStorageDirectory().getAbsolutePath()
@@ -123,6 +127,7 @@ public class SensorService extends Service implements SensorEventListener {
         && accelerometerSensor != null) {
       accelerometerLog = openLog(logFolder, "accelerometerLog.txt");
       appendLog(accelerometerLog, "timestamp[ns],x[m/s^2],y[m/s^2],z[m/s^2]");
+      sendSensorData(logFolder,"accelerometerLog.txt");
       sensorManager.registerListener(this, accelerometerSensor, delay);
     }
 
@@ -130,6 +135,7 @@ public class SensorService extends Service implements SensorEventListener {
         && gyroscopeSensor != null) {
       gyroscopeLog = openLog(logFolder, "gyroscopeLog.txt");
       appendLog(gyroscopeLog, "timestamp[ns],x[rad/s],y[rad/s],z[rad/s]");
+      sendSensorData(logFolder,"gyroscopeLog.txt");
       sensorManager.registerListener(this, gyroscopeSensor, delay);
     }
 
@@ -137,6 +143,7 @@ public class SensorService extends Service implements SensorEventListener {
         && gravitySensor != null) {
       gravityLog = openLog(logFolder, "gravityLog.txt");
       appendLog(gravityLog, "timestamp[ns],x[m/s^2],y[m/s^2],z[m/s^2]");
+      sendSensorData(logFolder,"gravityLog.txt");
       sensorManager.registerListener(this, gravitySensor, delay);
     }
 
@@ -144,6 +151,7 @@ public class SensorService extends Service implements SensorEventListener {
         && magneticSensor != null) {
       magneticLog = openLog(logFolder, "magneticLog.txt");
       appendLog(magneticLog, "timestamp[ns],x[uT],y[uT],z[uT]");
+      sendSensorData(logFolder,"magneticLog.txt");
       sensorManager.registerListener(this, magneticSensor, delay);
     }
 
@@ -151,6 +159,7 @@ public class SensorService extends Service implements SensorEventListener {
         && lightSensor != null) {
       lightLog = openLog(logFolder, "lightLog.txt");
       appendLog(lightLog, "timestamp[ns],light[lux]");
+      sendSensorData(logFolder,"lightLog.txt");
       sensorManager.registerListener(this, lightSensor, delay);
     }
 
@@ -158,6 +167,7 @@ public class SensorService extends Service implements SensorEventListener {
         && proximitySensor != null) {
       proximityLog = openLog(logFolder, "proximityLog.txt");
       appendLog(proximityLog, "timestamp[ns],proximity[cm]");
+      sendSensorData(logFolder,"proximityLog.txt");
       sensorManager.registerListener(this, proximitySensor, delay);
     }
 
@@ -165,6 +175,7 @@ public class SensorService extends Service implements SensorEventListener {
         && pressureSensor != null) {
       pressureLog = openLog(logFolder, "pressureLog.txt");
       appendLog(pressureLog, "timestamp[ns],pressure[hPa]");
+      sendSensorData(logFolder,"pressureLog.txt");
       sensorManager.registerListener(this, pressureSensor, delay);
     }
 
@@ -172,6 +183,7 @@ public class SensorService extends Service implements SensorEventListener {
         && temperatureSensor != null) {
       temperatureLog = openLog(logFolder, "temperatureLog.txt");
       appendLog(temperatureLog, "timestamp[ns],temperature[degrees]");
+      sendSensorData(logFolder,"temperatureLog.txt");
       sensorManager.registerListener(this, temperatureSensor, delay);
     }
 
@@ -179,6 +191,7 @@ public class SensorService extends Service implements SensorEventListener {
         && poseSensor != null) {
       poseLog = openLog(logFolder, "poseLog.txt");
       appendLog(poseLog, "timestamp[ns],x,y,z,w,x,y,z,dx,dy,dz,dw,dx,dy,dz,id");
+      sendSensorData(logFolder,"poseLog.txt");
       sensorManager.registerListener(this, poseSensor, delay);
     }
 
@@ -186,35 +199,45 @@ public class SensorService extends Service implements SensorEventListener {
         && motionSensor != null) {
       motionLog = openLog(logFolder, "motionLog.txt");
       appendLog(motionLog, "timestamp[ns],motion");
+      sendSensorData(logFolder,"motionLog.txt");
       sensorManager.registerListener(this, motionSensor, delay);
     }
 
     if (preferencesManager.getSensorStatus(Enums.SensorType.GPS.getSensor())) {
       gpsLog = openLog(logFolder, "gpsLog.txt");
       appendLog(gpsLog, "timestamp[ns],latitude,longitude,altitude[m],bearing,speed[m/s]");
+      sendSensorData(logFolder,"gpsLog.txt");
     }
 
     frameLog = openLog(logFolder, "rgbFrames.txt");
     appendLog(frameLog, "timestamp[ns],frame");
+    sendSensorData(logFolder,"rgbFrames.txt");
 
     inferenceLog = openLog(logFolder, "inferenceTime.txt");
     appendLog(inferenceLog, "frame, inferenceTime [ns]");
+    sendSensorData(logFolder,"inferenceTime.txt");
 
     ctrlLog = openLog(logFolder, "ctrlLog.txt");
     appendLog(ctrlLog, "timestamp[ns],leftCtrl,rightCtrl");
+    sendSensorData(logFolder,"ctrlLog.txt");
 
     indicatorLog = openLog(logFolder, "indicatorLog.txt");
     appendLog(indicatorLog, "timestamp[ns],signal");
+    sendSensorData(logFolder,"indicatorLog.txt");
 
     if (preferencesManager.getSensorStatus(Enums.SensorType.VEHICLE.getSensor())) {
       voltageLog = openLog(logFolder, "voltageLog.txt");
       appendLog(voltageLog, "timestamp[ns],batteryVoltage");
+      sendSensorData(logFolder,"voltageLog.txt");
       sonarLog = openLog(logFolder, "sonarLog.txt");
       appendLog(sonarLog, "timestamp[ns],distance[cm]");
+      sendSensorData(logFolder,"sonarLog.txt");
       wheelsLog = openLog(logFolder, "wheelsLog.txt");
       appendLog(wheelsLog, "timestamp[ns],leftWheel,rightWheel");
+      sendSensorData(logFolder,"wheelsLog.txt");
       bumperLog = openLog(logFolder, "bumperLog.txt");
       appendLog(bumperLog, "timestamp[ns],bumper");
+      sendSensorData(logFolder,"bumperLog.txt");
     }
 
     locationCallback =
@@ -236,6 +259,7 @@ public class SensorService extends Service implements SensorEventListener {
                       + location.getBearing()
                       + ","
                       + location.getSpeed());
+              sendSensorData(logFolder,"gpsLog.txt");
             }
           }
         };
@@ -263,6 +287,7 @@ public class SensorService extends Service implements SensorEventListener {
     // The light sensor returns a single value.
     // Many sensors return 3 values, one for each axis.
     String sensorName = event.sensor.getName();
+
     // Do something with this sensor value.
     switch (event.sensor.getType()) {
       case Sensor.TYPE_ACCELEROMETER:
@@ -277,6 +302,8 @@ public class SensorService extends Service implements SensorEventListener {
                 + event.values[1]
                 + ","
                 + event.values[2]);
+        SensorService sensorService = new SensorService();
+        sendSensorData(logFolder,"accelerometerLog.txt");
         break;
       case Sensor.TYPE_GYROSCOPE:
         // Angular speed around the device's local X, Y and Z axis
@@ -291,6 +318,7 @@ public class SensorService extends Service implements SensorEventListener {
                 + event.values[1]
                 + ","
                 + event.values[2]);
+        sendSensorData(logFolder,"gyroscopeLog.txt");
         break;
       case Sensor.TYPE_GRAVITY:
         // A three dimensional vector indicating the direction and magnitude of gravity
@@ -305,6 +333,7 @@ public class SensorService extends Service implements SensorEventListener {
                 + event.values[1]
                 + ","
                 + event.values[2]);
+        sendSensorData(logFolder,"gravityLog.txt");
         break;
       case Sensor.TYPE_MAGNETIC_FIELD:
         // Ambient magnetic field in the X, Y and Z axis in micro-Tesla (uT).
@@ -317,22 +346,27 @@ public class SensorService extends Service implements SensorEventListener {
                 + event.values[1]
                 + ","
                 + event.values[2]);
+        sendSensorData(logFolder,"magneticLog.txt");
         break;
       case Sensor.TYPE_LIGHT:
         // Ambient light level in SI lux units
         appendLog(lightLog, event.timestamp + "," + event.values[0]);
+        sendSensorData(logFolder,"lightLog.txt");
         break;
       case Sensor.TYPE_PROXIMITY:
         // Proximity sensor distance measured in centimeters
         appendLog(proximityLog, event.timestamp + "," + event.values[0]);
+        sendSensorData(logFolder,"proximityLog.txt");
         break;
       case Sensor.TYPE_PRESSURE:
         // Atmospheric pressure in mPa (millibar)
         appendLog(pressureLog, event.timestamp + "," + event.values[0]);
+        sendSensorData(logFolder,"pressureLog.txt");
         break;
       case Sensor.TYPE_AMBIENT_TEMPERATURE:
         // Ambient temperature in degrees
         appendLog(temperatureLog, event.timestamp + "," + event.values[0]);
+        sendSensorData(logFolder,"temperatureLog.txt");
         break;
       case Sensor.TYPE_POSE_6DOF:
         // values[0]: x*sin(θ/2)
@@ -383,12 +417,15 @@ public class SensorService extends Service implements SensorEventListener {
                 + event.values[13]
                 + ","
                 + event.values[14]);
+        sendSensorData(logFolder,"poseLog.txt");
         break;
       case Sensor.TYPE_MOTION_DETECT:
         appendLog(motionLog, event.timestamp + "," + event.values[0]);
+        sendSensorData(logFolder,"motionLog.txt");
         break;
       case Sensor.TYPE_STATIONARY_DETECT:
         appendLog(motionLog, event.timestamp + "," + (-1) * event.values[0]);
+        sendSensorData(logFolder,"motionLog.txt");
         break;
       default:
         // Unknown sensor
@@ -403,36 +440,58 @@ public class SensorService extends Service implements SensorEventListener {
         if (msg.what == MSG_FRAME) {
           long frameNumber = msg.getData().getLong("frameNumber");
           long timestamp = msg.getData().getLong("timestamp");
-          if (frameLog != null) appendLog(frameLog, timestamp + "," + frameNumber);
+          if (frameLog != null) {
+            appendLog(frameLog, timestamp + "," + frameNumber);
+            sendSensorData(logFolder,"frameLog.txt");
+          }
         } else if (msg.what == MSG_INFERENCE) {
           long frameNumber = msg.getData().getLong("frameNumber");
           long inferenceTime = msg.getData().getLong("inferenceTime");
-          if (inferenceLog != null) appendLog(inferenceLog, frameNumber + "," + inferenceTime);
+          if (inferenceLog != null){
+            appendLog(inferenceLog, frameNumber + "," + inferenceTime);
+            sendSensorData(logFolder,"inferenceLog.txt");
+          }
         } else if (msg.what == MSG_CONTROL) {
           // msg.arg1 and msg.arg2 contain left and right control signals respectively
-          if (ctrlLog != null)
+          if (ctrlLog != null) {
             appendLog(
-                ctrlLog, SystemClock.elapsedRealtimeNanos() + "," + msg.arg1 + "," + msg.arg2);
+                    ctrlLog, SystemClock.elapsedRealtimeNanos() + "," + msg.arg1 + "," + msg.arg2);
+            sendSensorData(logFolder,"ctrlLog.txt");
+          }
         } else if (msg.what == MSG_INDICATOR) {
           // msg.arg1 contains indicator signal
-          if (indicatorLog != null)
+          if (indicatorLog != null){
             appendLog(indicatorLog, SystemClock.elapsedRealtimeNanos() + "," + msg.arg1);
+            sendSensorData(logFolder,"indicatorLog.txt");
+          }
         } else if (msg.what == MSG_VOLTAGE) {
           long timestamp = msg.getData().getLong("timestamp");
           String data = msg.getData().getString("data");
-          if (voltageLog != null) appendLog(voltageLog, timestamp + "," + data);
+          if (voltageLog != null){
+            appendLog(voltageLog, timestamp + "," + data);
+            sendSensorData(logFolder,"voltageLog.txt");
+          }
         } else if (msg.what == MSG_SONAR) {
           long timestamp = msg.getData().getLong("timestamp");
           String data = msg.getData().getString("data");
-          if (sonarLog != null) appendLog(sonarLog, timestamp + "," + data);
+          if (sonarLog != null){
+            appendLog(sonarLog, timestamp + "," + data);
+            sendSensorData(logFolder,"sonarLog.txt");
+          }
         } else if (msg.what == MSG_WHEELS) {
           long timestamp = msg.getData().getLong("timestamp");
           String data = msg.getData().getString("data");
-          if (wheelsLog != null) appendLog(wheelsLog, timestamp + "," + data);
+          if (wheelsLog != null){
+            appendLog(wheelsLog, timestamp + "," + data);
+            sendSensorData(logFolder,"wheelsLog.txt");
+          }
         } else if (msg.what == MSG_BUMPER) {
           long timestamp = msg.getData().getLong("timestamp");
           String data = msg.getData().getString("data");
-          if (bumperLog != null) appendLog(bumperLog, timestamp + "," + data);
+          if (bumperLog != null){
+            appendLog(bumperLog, timestamp + "," + data);
+            sendSensorData(logFolder,"bumperLog.txt");
+          }
         } else LOGGER.d("Message skipped.");
       }
     }
@@ -533,6 +592,19 @@ public class SensorService extends Service implements SensorEventListener {
     if (trackingLocation) {
       trackingLocation = false;
       fusedLocationClient.removeLocationUpdates(locationCallback);
+    }
+  }
+  public void sendSensorData(String path, String file){
+    try {
+      File myDir = new File(path);
+      File fileToRead = new File (myDir, file);
+      BufferedReader br = new BufferedReader(new FileReader(fileToRead));
+      String data;
+      while((data = br.readLine()) != null){
+        BotToControllerEventBus.emitEvent(ConnectionUtils.createSensordata(file, data));
+      }
+      } catch (IOException e) {
+      e.printStackTrace();
     }
   }
 

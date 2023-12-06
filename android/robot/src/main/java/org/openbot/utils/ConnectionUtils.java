@@ -10,6 +10,14 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 public class ConnectionUtils {
+  public static JSONObject createSensordata(String name, String data){
+    try {
+      return new JSONObject().put("sensordata", new JSONObject().put(name, data));
+    } catch (JSONException e) {
+      e.printStackTrace();
+    }
+    return new JSONObject();
+  }
 
   public static JSONObject createStatus(String name, Boolean value) {
     return createStatus(name, value ? "true" : "false");
